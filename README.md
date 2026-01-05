@@ -132,7 +132,7 @@ Output
 Installation & Setup
 ```
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/ts-mongo-search-parser.git
+git clone https://github.com/devkarx/ts-mongo-search-parser.git
 
 # Enter the project directory
 cd ts-mongo-search-parser
