@@ -1,26 +1,32 @@
-import { Lexer } from './Lexer.js';
+import { Lexer } from './Lexer';
+import { Parser } from './parser';
 
+// The Test Query
+// We are testing: OR logic, AND logic, Parentheses, and Fields
+const query = "status:open OR (urgent AND assigned:me)";
 
-const lexer = new Lexer({
-    allowedKeys: ['from', 'has', 'priority']
-});
+console.log("--- 1. INPUT QUERY ---");
+console.log(query);
+console.log("\n");
 
-const difficultInput = 'from:"Sing Li" has:link priority:high "fix critical bug"';
+// Step 1: Tokenize (Break string into Legos)
+const lexer = new Lexer(query);
+const tokens = lexer.tokenize();
 
+console.log("--- 2. TOKENS (The Legos) ---");
+tokens.forEach(t => console.log(`[${t.type}] ${t.value}`));
+console.log("\n");
 
-console.log("--- Input ---");
-console.log(difficultInput);
+// Step 2: Parse (Build the Lego Castle)
+const parser = new Parser(tokens);
 
-const result = lexer.parse(difficultInput);
+try {
+  const ast = parser.parse();
+  
+  console.log("--- 3. ABSTRACT SYNTAX TREE (The Result) ---");
+  // JSON.stringify makes the tree readable with indentation
+  console.log(JSON.stringify(ast, null, 2));
 
-console.log("\n--- Parsed Output ---");
-console.log(JSON.stringify(result, null, 2));
-
-
-// We check if 'from' exists AND if the FIRST item matches
-if (result.filters.from && result.filters.from[0] === "Sing Li") {
-    console.log("\n✅ SUCCESS: Handled the space correctly.");
-} else {
-    console.log("\n❌ FAILURE: Still broken.");
-    console.log("Got:", result.filters.from); 
+} catch (error) {
+  console.error("PARSING FAILED:", error);
 }

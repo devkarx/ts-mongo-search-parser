@@ -1,59 +1,86 @@
-import type { ISearchFilters, IParsedQuery, IParserOptions } from './types.js';
+import { type ISearchFilters, type IParsedQuery, type IParserOptions, type Token, TokenType } from './types';
 
 export class Lexer {
-    private allowedKeys: Set<string>;
+    private input: string;
+    private position: number = 0;
+    private currentChar: string | null = null;
 
-    constructor(options: IParserOptions) {
-        this.allowedKeys = new Set(options.allowedKeys);
+    constructor(input: string) {
+        this.input = input;
+        this.position = 0;
+        this.currentChar = this.input.length > 0 ? (this.input[0] ?? null) : null;
     }
 
-    /**
-     * The Main Function: Converts a raw string into a structured object.
-     * Fixes the "Space Bug" by handling quotes correctly.
-     */
-    public parse(input: string): IParsedQuery {
-        const filters: ISearchFilters = {};
-        let cleanText = input;
+    // Helper: Move the cursor forward one step
+    private advance(): void {
+        this.position++;
+        if (this.position < this.input.length) {
+            this.currentChar = this.input[this.position] || null;
+        } else {
+            this.currentChar = null;
+        }
+    }
 
-        // Regex Explanation:
-        // Group 1: Key (e.g., 'from')
-        // Group 2: Quoted Value (e.g., 'Sing Li')
-        // Group 3: Simple Value (e.g., 'me')
-        const regex = /\b(\w+):(?:"([^"]+)"|(\S+))/g;
+    // Helper: Skip whitespace (spaces, tabs)
+    private skipWhitespace(): void {
+        while (this.currentChar !== null && /\s/.test(this.currentChar)) {
+            this.advance();
+        }
+    }
 
-        let match;
-        while ((match = regex.exec(input)) !== null) {
-            const [fullMatch, key, quotedValue, simpleValue] = match;
+    // The Main Engine
+    public tokenize(): Token[] {
+        const tokens: Token[] = [];
 
-            // SAFETY: Skip if key is missing (TypeScript strictness)
-            if (!key) continue;
-
-            const value = quotedValue || simpleValue;
-
-            // VALIDATOR: Only accept keys we know about
-            if (this.allowedKeys.has(key)) {
-                
-                // Initialize array if it doesn't exist
-                // We cast to 'any' here because TypeScript knows 'from' is specific,
-                // but we are writing generic code for ALL keys.
-                if (!(filters as any)[key]) {
-                    (filters as any)[key] = [];
-                }
-
-                // PUSH the value (Store as Array)
-                (filters as any)[key].push(value);
-
-                // Remove the token from the text
-                cleanText = cleanText.replace(fullMatch, "");
+        while (this.currentChar !== null) {
+            // 1. Handle Whitespace
+            if (/\s/.test(this.currentChar)) {
+                this.skipWhitespace();
+                continue;
             }
+
+            // 2. Handle Parentheses (Single character tokens)
+            if (this.currentChar === '(') {
+                tokens.push({ type: TokenType.LPAREN, value: '(', position: this.position });
+                this.advance();
+                continue;
+            }
+
+            if (this.currentChar === ')') {
+                tokens.push({ type: TokenType.RPAREN, value: ')', position: this.position });
+                this.advance();
+                continue;
+            }
+
+            // 3. Handle Words (Keywords or Filters)
+            // If it's not a space or symbol, it must be part of a word/filter
+            tokens.push(this.readWord());
         }
 
-        // Cleanup: Remove double spaces left behind by replacements
-        const finalText = cleanText.replace(/\s+/g, " ").trim();
-
-        return {
-            filters,
-            text: finalText
-        };
+        return tokens;
     }
+
+    private readWord(): Token {
+    let result = '';
+    const startPos = this.position; 
+
+   
+    while (this.currentChar !== null && !/\s/.test(this.currentChar) && this.currentChar !== '(' && this.currentChar !== ')') {
+      result = result + this.currentChar;
+      this.advance();
+    }
+
+    let upper = result.toUpperCase();
+    
+
+    if (upper === "OR") {
+        return { type: TokenType.OR, value: result, position: startPos };
+    }
+    if (upper === "AND") {
+        return { type: TokenType.AND, value: result, position: startPos };
+    }
+    const type = result.includes(':') ? TokenType.FILTER : TokenType.TEXT;
+
+    return { type: type, value: result, position: startPos };
+  }
 }

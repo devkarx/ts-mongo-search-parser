@@ -19,3 +19,20 @@ export interface IParsedQuery {
 export interface IParserOptions {
     allowedKeys: string[]; // e.g., ['from', 'has', 'in']
 }
+
+export enum TokenType{
+    OR = 'OR',
+    AND = 'AND',
+
+    LPAREN = 'LPAREN',
+    RPAREN = 'RPAREN',
+
+    FILTER = 'FILTER',
+    TEXT = 'TEXT'
+}
+
+export interface Token {
+    type: TokenType;
+    position: number;
+    value: string;
+}
