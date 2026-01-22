@@ -1,86 +1,105 @@
-import { type ISearchFilters, type IParsedQuery, type IParserOptions, type Token, TokenType } from './types';
+import { Token, TokenType } from './types';
 
 export class Lexer {
-    private input: string;
-    private position: number = 0;
-    private currentChar: string | null = null;
+  private input: string;
+  private position: number = 0;
+  private currentChar: string | null = null;
 
-    constructor(input: string) {
-        this.input = input;
-        this.position = 0;
-        this.currentChar = this.input.length > 0 ? (this.input[0] ?? null) : null;
+  constructor(input: string) {
+    this.input = input;
+    this.currentChar = this.input.length > 0 ? this.input[0] || null : null;
+  }
+
+  private advance(): void {
+    this.position++;
+    if (this.position < this.input.length) {
+      this.currentChar = this.input[this.position] || null;
+    } else {
+      this.currentChar = null;
+    }
+  }
+
+  public tokenize(): Token[] {
+    const tokens: Token[] = [];
+
+    while (this.currentChar !== null) {
+      // 1. Skip Spaces
+      if (/\s/.test(this.currentChar)) {
+        this.advance();
+        continue;
+      }
+
+      // 2. Handle Parentheses
+      if (this.currentChar === '(') {
+        tokens.push({ type: TokenType.LPAREN, value: '(', position: this.position });
+        this.advance();
+        continue;
+      }
+      if (this.currentChar === ')') {
+        tokens.push({ type: TokenType.RPAREN, value: ')', position: this.position });
+        this.advance();
+        continue;
+      }
+
+      // 3. NEW: Handle Quoted Strings (The Fix!)
+      if (this.currentChar === '"') {
+        tokens.push(this.readQuotedString());
+        continue;
+      }
+
+      // 4. Handle Normal Words / Keywords
+      tokens.push(this.readWord());
     }
 
-    // Helper: Move the cursor forward one step
-    private advance(): void {
-        this.position++;
-        if (this.position < this.input.length) {
-            this.currentChar = this.input[this.position] || null;
-        } else {
-            this.currentChar = null;
-        }
-    }
+    return tokens;
+  }
 
-    // Helper: Skip whitespace (spaces, tabs)
-    private skipWhitespace(): void {
-        while (this.currentChar !== null && /\s/.test(this.currentChar)) {
-            this.advance();
-        }
-    }
+  // --- NEW METHOD: Reads everything inside quotes ---
+  private readQuotedString(): Token {
+    const startPos = this.position;
+    this.advance(); // Skip the opening quote "
 
-    // The Main Engine
-    public tokenize(): Token[] {
-        const tokens: Token[] = [];
-
-        while (this.currentChar !== null) {
-            // 1. Handle Whitespace
-            if (/\s/.test(this.currentChar)) {
-                this.skipWhitespace();
-                continue;
-            }
-
-            // 2. Handle Parentheses (Single character tokens)
-            if (this.currentChar === '(') {
-                tokens.push({ type: TokenType.LPAREN, value: '(', position: this.position });
-                this.advance();
-                continue;
-            }
-
-            if (this.currentChar === ')') {
-                tokens.push({ type: TokenType.RPAREN, value: ')', position: this.position });
-                this.advance();
-                continue;
-            }
-
-            // 3. Handle Words (Keywords or Filters)
-            // If it's not a space or symbol, it must be part of a word/filter
-            tokens.push(this.readWord());
-        }
-
-        return tokens;
-    }
-
-    private readWord(): Token {
     let result = '';
-    const startPos = this.position; 
+    
+    // Keep eating until we hit the closing quote " or end of input
+    while (this.currentChar !== null && this.currentChar !== '"') {
+      result += this.currentChar;
+      this.advance();
+    }
 
-   
-    while (this.currentChar !== null && !/\s/.test(this.currentChar) && this.currentChar !== '(' && this.currentChar !== ')') {
-      result = result + this.currentChar;
+    // Skip the closing quote "
+    if (this.currentChar === '"') {
+      this.advance();
+    }
+
+    // Return as plain TEXT (Keywords/Field logic ignored inside quotes)
+    return { type: TokenType.TEXT, value: result, position: startPos };
+  }
+
+  private readWord(): Token {
+    let result = '';
+    const startPos = this.position;
+
+    // Standard reading: stop at space, parens, OR QUOTES
+    while (
+      this.currentChar !== null && 
+      !/\s/.test(this.currentChar) && 
+      this.currentChar !== '(' && 
+      this.currentChar !== ')' &&
+      this.currentChar !== '"' // Stop if we hit a quote
+    ) {
+      result += this.currentChar;
       this.advance();
     }
 
     let upper = result.toUpperCase();
     
-
-    if (upper === "OR") {
-        return { type: TokenType.OR, value: result, position: startPos };
-    }
-    if (upper === "AND") {
-        return { type: TokenType.AND, value: result, position: startPos };
-    }
+    // Check Keywords
+    if (upper === "OR") return { type: TokenType.OR, value: "OR", position: startPos };
+    if (upper === "AND") return { type: TokenType.AND, value: "AND", position: startPos };
+    
+    // Check Data
     const type = result.includes(':') ? TokenType.FILTER : TokenType.TEXT;
-
     return { type: type, value: result, position: startPos };
   }
 }

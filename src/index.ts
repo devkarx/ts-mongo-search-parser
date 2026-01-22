@@ -1,10 +1,10 @@
 import { Lexer } from './Lexer';
 import { Parser } from './parser';
+import { Compiler } from './compiler';
 
 // The Test Query
 // We are testing: OR logic, AND logic, Parentheses, and Fields
-const query = "status:open OR (urgent AND assigned:me)";
-
+const query = 'title:"Tom and Jerry" OR code:"print()"';
 console.log("--- 1. INPUT QUERY ---");
 console.log(query);
 console.log("\n");
@@ -26,6 +26,10 @@ try {
   console.log("--- 3. ABSTRACT SYNTAX TREE (The Result) ---");
   // JSON.stringify makes the tree readable with indentation
   console.log(JSON.stringify(ast, null, 2));
+  console.log("\n--- 4. COMPILER (The Translation) ---");
+const compiler = new Compiler();
+const mongoQuery = compiler.compile(ast);
+console.log(JSON.stringify(mongoQuery, null, 2));
 
 } catch (error) {
   console.error("PARSING FAILED:", error);
