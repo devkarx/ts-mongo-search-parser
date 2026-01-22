@@ -1,9 +1,12 @@
 import { SearchNode } from './ast';
 
 export class Compiler {
-  // This is the entry point
+  
+  /**
+   * Main Entry Point
+   * Takes an AST Node and returns a MongoDB Query Object
+   */
   public compile(ast: SearchNode): any {
-    // We will switch based on what kind of node we are looking at
     switch (ast.type) {
       case 'Binary':
         return this.visitBinary(ast);
@@ -14,15 +17,31 @@ export class Compiler {
     }
   }
 
-  // Handle AND / OR
+  // 1. Handle Logic (AND / OR)
   private visitBinary(node: any): any {
-    console.log("Compiling Binary Logic...");
-    return {}; // Placeholder
+    // Convert "OR" -> "$or", "AND" -> "$and"
+    const mongoOperator = node.operator === 'OR' ? '$or' : '$and';
+
+    return {
+      [mongoOperator]: [
+        this.compile(node.left),  // Recursively compile the left side
+        this.compile(node.right)  // Recursively compile the right side
+      ]
+    };
   }
 
-  // Handle "status:open"
+  // 2. Handle Data (status:open)
   private visitFilter(node: any): any {
-    console.log(`Compiling Filter: ${node.field} = ${node.value}`);
-    return {}; // Placeholder
+    // Special Case: Full Text Search
+    if (node.field === 'text') {
+      return { 
+        "$text": { "$search": node.value } 
+      };
+    }
+
+    // Normal Case: Field Match
+    return { 
+      [node.field]: node.value 
+    };
   }
 }
