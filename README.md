@@ -28,6 +28,20 @@ graph LR
     C -->|AST / IR| D(Mongo Compiler);
     D -->|Output| E["{ MongoDB Query }"];
 ```
+## Features Implemented
+
+- **Recursive Descent Parsing**  
+  Full support for nested groups using parentheses.
+
+- **Operator Precedence**  
+  Correct handling of `AND` vs `OR` priority.
+
+- **Implicit AND**  
+  Graceful handling of lazy user input  
+  (`deadline passed` → `deadline AND passed`).
+
+- **Quoted Literals**  
+  Phrases like `"system failure"` are treated as atomic units.
 
 ## Phase 1: Lexer (Tokenizer)
 
@@ -104,20 +118,23 @@ Output (MongoDB Query)
 
 ## Usage Example
 
-```ts
-import { SearchParser } from './core/SearchParser';
+```typescript
+import { Lexer } from './src/lexer';
+import { Parser } from './src/parser';
+import { Compiler } from './src/compiler';
 
-const query = 'from:admin has:link "server crash"';
+const query = 'status:open (urgent OR "server crash")';
 
-// 1. Initialize parser with allowed keys
-const parser = new SearchParser({
-  allowedKeys: ['from', 'has', 'in', 'mentions']
-});
+// 1. Lexing
+const tokens = new Lexer(query).tokenize();
 
-// 2. Compile to MongoDB query
-const mongoQuery = parser.compile(query);
+// 2. Parsing (AST Generation)
+const ast = new Parser(tokens).parse();
 
-console.log(mongoQuery);
+// 3. Compilation (MongoDB Query)
+const mongoQuery = new Compiler().compile(ast);
+
+console.log(JSON.stringify(mongoQuery, null, 2));
 ```
 Output
 ```
@@ -141,35 +158,31 @@ cd ts-mongo-search-parser
 npm install
 
 # Run tests
-npm test
+npm run demo
 
 ```
 Project Structure
 ```
 ts-mongo-search-parser/
 ├── src/
-│   ├── lexer/          # Tokenization logic (Regex patterns)
-│   ├── parser/         # Validation & IR generation
-│   ├── compiler/       # MongoDB-specific translators
-│   └── types/          # AST interfaces & type definitions
-├── tests/              # Unit tests for each phase
-├── .gitignore
-├── package.json
-└── README.md
+│   ├── ast.ts        # AST node definitions
+│   ├── compiler.ts   # MongoDB query compiler (AST → MongoDB)
+│   ├── demo.ts       # Demo file containing complex search queries
+│   ├── index.ts      # Public entry point
+│   ├── lexer.ts      # Tokenization logic
+│   ├── parser.ts     # Recursive Descent Parser
+│   └── types.ts      # Shared types and interfaces
+├── tests/            # Test suite (currently empty)
+├── package.json      # Project metadata, scripts, and dependencies
+└── README.md         # Project documentation
 
 ```
-
 ## Future Roadmap
 
-- Boolean Logic
-Explicit support for AND / OR operators
-
-- Date Parsing
-Specialized compiler support for after:YYYY-MM-DD
-
-- Rocket.Chat Adapter
-Drop-in wrapper for direct integration with Rocket.Chat Core
-
+- [ ] **Field Mapping:** Map generic keys (`from`) to database fields (`u.username`).
+- [ ] **Date Parsing:** Specialized compiler support for `after:YYYY-MM-DD`.
+- [ ] **Rocket.Chat Adapter:** Drop-in wrapper for direct integration with Rocket.Chat Core.
+      
 ## Maintainer 
 Maintained by Aradhy 
 
