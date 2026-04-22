@@ -119,4 +119,4 @@ export class Parser {
 
     throw new Error(`Unexpected token: ${token.value}`);
   }
-}
+} 
